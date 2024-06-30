@@ -1,4 +1,5 @@
-name: build analyze, scan
+name: Build, Analyze, Scan, and Deploy
+
 on:
   push:
     branches:
@@ -6,38 +7,53 @@ on:
 
 jobs:
   build-analyze-scan:
-    name: build
-    runs-on: [self-hosted]
+    name: Build, Analyze, and Scan
+    runs-on: self-hosted
     steps:
-      - name: checkout the code
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: BUilding code and analyze with SonarQube
-        uses: actions/checkout@master
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Building code
+        run: npm run build
+
+      - name: SonarQube Analysis
+        uses: sonarsource/sonarcloud-github-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      - name: dependencies install
-        run: npm install
-      - name: trivy scan
+
+      - name: Trivy Scan
         run: trivy -fs . > trivy-report.txt
-      - name: docker build push
+
+      - name: Docker Build and Push
         run: |
-          docker build -t zomato
+          docker build -t zomato .
           docker tag zomato manlineroot12/zomato:latest
-          docker login -u ${{ secret. DOCKER_USERNAME }} -p {{ secret. DOCKER_TOKEN }}
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
           docker push manlineroot12/zomato:latest
         env:
-          DOCKER_CLI_ACL : 1
+          DOCKER_CLI_ACL: 1
+
   deploy:
+    name: Deploy to Kubernetes or Docker
     needs: build-analyze-scan
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     steps:
-      - name: docker pull
+      - name: Docker Pull
         run: docker pull manlineroot12/zomato:latest
-      - name: Image scan
+
+      - name: Image Scan with Trivy
         run: trivy image manlineroot12/zomato:latest > image-trivy-scan.txt
-      - name: run docker container
+
+      - name: Run Docker Container
         run: docker run -itd -p 3000:3000 --name zomato manlineroot12/zomato:latest
-        

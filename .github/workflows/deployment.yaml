@@ -7,52 +7,58 @@ on:
 
 jobs:
   build-analyze-scan:
-    name: build
-    runs-on: [self-hosted]
+    name: Build, Analyze, and Scan
+    runs-on: ubuntu-latest
     steps:
-      - name: checkout the code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
         with:
-          fetch-depth: 0
-      - name: Building code and analyze with SonarQube
-        uses: actions/checkout@master
+          node-version: '14'  # Adjust Node.js version as per your project requirements
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Analyze with SonarQube
+        uses: sonarsource/sonarcloud-github-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      - name: dependencies install
-        run: npm install
-      - name: trivy scan
-        run: trivy fs . > trivy-report.txt
-      - name: docker build push
+
+      - name: Run Trivy scan
         run: |
-          docker build zomato .
-          docker tag zomato 
+          sudo apt-get update && sudo apt-get install -yq wget gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+          trivy fs . > trivy-report.txt
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t zomato .
           docker tag zomato manlineroot12/zomato:latest
-          docker login -u ${{ secrets. DOCKER_USERNAME }} -p {{ secrets. DOCKER_TOKEN }}
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
           docker push manlineroot12/zomato:latest
-        env:
-          DOCKER_CLI_ACL: 1
+
   deploy:
-    name: deploy app to docker
+    name: Deploy app to Docker
     needs: build-analyze-scan
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
     steps:
-      - name: docker pull
+      - name: Pull Docker image
         run: docker pull manlineroot12/zomato:latest
-      - name: Image scan
-        run: trivy image manlineroot12/zomato:latest > image-trivy-scan.txt
-      - name: run docker container
+
+      - name: Scan Docker image with Trivy
+        run: |
+          sudo apt-get update && sudo apt-get install -yq wget gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+          trivy image manlineroot12/zomato:latest > image-trivy-scan.txt
+
+      - name: Run Docker container
         run: docker run -itd -p 3000:3000 --name zomato manlineroot12/zomato:latest
-        
-
-
-
-
-
-
-
-
-
-
-        
-          

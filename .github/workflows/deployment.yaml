@@ -1,5 +1,4 @@
-name: Build, Analyze, and Deploy
-
+name: build analyze, scan
 on:
   push:
     branches:
@@ -7,50 +6,35 @@ on:
 
 jobs:
   build-analyze-scan:
-    name: Build and Analyze with SonarQube
-    runs-on: self-hosted
+    name: build
+    runs-on: [self-hosted]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: checkout the code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build
-        run: npm run build
-
-      - name: Run SonarQube analysis
-        uses: sonarsource/sonarcloud-github-action@master
+      - name: BUilding code and analyze with SonarQube
+        uses: actions/checkout@master
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: your_project_key
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
+      - name: dependencies install
+        run: |
+          npm install
   deploy:
-    name: Deploy to Kubernetes and Docker
+    name: deploy app to docker
     needs: build-analyze-scan
-    runs-on: self-hosted
+    runs-on: [self-hosted]
     steps:
-      - name: Docker pull
+      - name: docker pull
         run: docker pull manlineroot12/zomato:latest
-
-      - name: Configure AWS credentials
+      - name: Configure aws credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Update kubeconfig
+      - name: update-kubeconfig
         run: aws eks update-kubeconfig --name Zomato-demo-cluster --region ap-south-1
-
-      - name: Deploy to Kubernetes
+      - name: Deploy to kubernetes
         run: kubectl apply -f deployment-service.yml

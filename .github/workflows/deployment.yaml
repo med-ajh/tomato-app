@@ -1,0 +1,56 @@
+name: Build, Analyze, and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-analyze-scan:
+    name: Build and Analyze with SonarQube
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Run SonarQube analysis
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: your_project_key
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  deploy:
+    name: Deploy to Kubernetes and Docker
+    needs: build-analyze-scan
+    runs-on: self-hosted
+    steps:
+      - name: Docker pull
+        run: docker pull manlineroot12/zomato:latest
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name Zomato-demo-cluster --region ap-south-1
+
+      - name: Deploy to Kubernetes
+        run: kubectl apply -f deployment-service.yml

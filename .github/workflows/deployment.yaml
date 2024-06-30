@@ -25,7 +25,7 @@ jobs:
         run: trivy fs . > trivy-report.txt
       - name: docker build push
         run: |
-          docker build zomato .
+          docker build -t zomato .
           docker tag zomato 
           docker tag zomato manlineroot12/zomato:latest
           docker login -u ${{ secrets. DOCKER_USERNAME }} -p {{ secrets. DOCKER_TOKEN }}

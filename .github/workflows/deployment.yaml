@@ -27,7 +27,7 @@ jobs:
         run: |
           docker build -t zomato .
           docker tag zomato manlineroot12/zomato:latest
-          docker login -u ${{ secrets. DOCKER_USERNAME }} -p {{ secrets. DOCKER_TOKEN }}
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
           docker push manlineroot12/zomato:latest
         env:
           DOCKER_CLI_ACL: 1

@@ -26,7 +26,6 @@ jobs:
       - name: docker build push
         run: |
           docker build -t zomato .
-          docker tag zomato 
           docker tag zomato manlineroot12/zomato:latest
           docker login -u ${{ secrets. DOCKER_USERNAME }} -p {{ secrets. DOCKER_TOKEN }}
           docker push manlineroot12/zomato:latest

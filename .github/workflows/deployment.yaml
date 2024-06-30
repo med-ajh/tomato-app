@@ -7,50 +7,39 @@ on:
 
 jobs:
   build-analyze-scan:
-    name: Build, Analyze, and Scan
-    runs-on: ubuntu-latest
+    name: build
+    runs-on: [self-hosted]
     steps:
-      - name: Checkout the code
-        uses: actions/checkout@v2
+      - name: checkout the code
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for accurate SonarQube analysis
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'  # Adjust Node.js version as per your project requirements
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Analyze with SonarQube
-        uses: sonarsource/sonarcloud-github-action@v1
+          fetch-depth: 0
+      - name: Building code and analyze with SonarQube
+        uses: actions/checkout@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-      - name: Run Trivy Scan
+      - name: dependencies install
+        run: npm install
+      - name: trivy scan
+        run: trivy fs . > trivy-report.txt
+      - name: docker build push
         run: |
-          trivy fs . > trivy-report.txt
-
-      - name: Docker Build and Push
-        run: |
-          docker build -t zomato .
+          docker build zomato .
+          docker tag zomato 
           docker tag zomato manlineroot12/zomato:latest
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
+          docker login -u ${{ secrets. DOCKER_USERNAME }} -p {{ secrets. DOCKER_TOKEN }}
           docker push manlineroot12/zomato:latest
-
+        env:
+          DOCKER_CLI_ACL: 1
   deploy:
-    name: Deploy App to Docker
+    name: deploy app to docker
     needs: build-analyze-scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
-      - name: Docker Pull
+      - name: docker pull
         run: docker pull manlineroot12/zomato:latest
-
-      - name: Image Scan with Trivy
-        run: |
-          trivy image manlineroot12/zomato:latest > image-trivy-scan.txt
-
-      - name: Run Docker Container
+      - name: Image scan
+        run: trivy image manlineroot12/zomato:latest > image-trivy-scan.txt
+      - name: run docker container
         run: docker run -itd -p 3000:3000 --name zomato manlineroot12/zomato:latest

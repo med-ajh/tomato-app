@@ -26,9 +26,9 @@ jobs:
       - name: docker build push
         run: |
           docker build -t zomato .
-          docker tag zomato manlineroot12/zomato:latest
+          docker tag zomato medajh/zomato:latest
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
-          docker push manlineroot12/zomato:latest
+          docker push medajh/zomato:latest
         env:
           DOCKER_CLI_ACL: 1
   deploy:
@@ -37,8 +37,8 @@ jobs:
     runs-on: [self-hosted]
     steps:
       - name: docker pull
-        run: docker pull manlineroot12/zomato:latest
+        run: docker pull medajh/zomato:latest
       - name: Image scan
-        run: trivy image manlineroot12/zomato:latest > image-trivy-scan.txt
+        run: trivy image medajh/zomato:latest > image-trivy-scan.txt
       - name: run docker container
-        run: docker run -itd -p 3000:3000 --name zomato manlineroot12/zomato:latest
+        run: docker run -itd -p 3000:3000 --name zomato medajh/zomato:latest
